@@ -353,9 +353,9 @@
                     text: all_features.map(f => f.properties.SA22018_V1_00_NAME),
                     marker: {
                         //size: 3
-                        color: all_features.map(f => f.properties.ethnicity.Maori),
+                        color: all_features.map(f => f.properties.ethnicity.Maori / f.properties.ethnicity["Total stated"] * 100),
                         colorbar: {
-                            title: "# maori"
+                            title: "% maori"
                         }
                     },
                     mode: 'markers',
