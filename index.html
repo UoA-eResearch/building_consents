@@ -105,7 +105,7 @@
         const myResizer = new Resizer('.row');
         const MIN_DOMAIN = 0;
         const MAX_DOMAIN = 50;
-        var cmap = chroma.scale("Spectral").domain([MIN_DOMAIN, MAX_DOMAIN]);
+        var cmap = chroma.scale("Blues").domain([MIN_DOMAIN, MAX_DOMAIN]);
 
         var map = L.map('map', {
             zoom: 6,
@@ -271,10 +271,13 @@
                     height: 300,
                 }
                 Plotly.newPlot("consents", consentPlotData, layout, { responsive: true });
+                for (var k in imd_summary) {
+                    imd_summary[k] /= 6181
+                }
 
                 var imdPlotData = [{
                     x: Object.keys(imd_summary).map(e => e.replace("_mean", "")),
-                    y: Object.values(imd_summary).map(e => e / 6181),
+                    y: Object.values(imd_summary),
                     type: 'line',
                 }];
                 layout = {
