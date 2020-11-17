@@ -20,6 +20,7 @@
             padding: 0;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         .row {
@@ -31,7 +32,12 @@
         #plots {
             flex: auto;
             width: 0;
-            height: 100%;
+            height: calc(100% - 40px);
+        }
+
+        #plots {
+            overflow-x: hidden;
+            overflow-y: auto;
         }
 
         #title {
@@ -106,6 +112,7 @@
             <div id="consents"></div>
             <div id="IMD"></div>
             <div id="ethnicity"></div>
+            <div id="depvsconsents"></div>
         </div>
     </div>
     <script>
@@ -286,8 +293,10 @@
                     "Housing_mean": 0,
                     "Income_mean": 0
                 }
+                var all_features = []
                 event.target.eachLayer(function (layer) {
                     //console.log(layer.feature)
+                    all_features.push(layer.feature)
                     for (var month in layer.feature.properties.building_consents) {
                         building_consents_summary[month] += layer.feature.properties.building_consents[month];
                     }
@@ -335,6 +344,34 @@
                     height: 300,
                 }
                 Plotly.newPlot("ethnicity", ethPlotData, layout, { responsive: true });
+
+                console.log(all_features)
+
+                var depvsconsentsPlotData = [{
+                    x: all_features.map(f => f.properties.IMD18_mean),
+                    y: all_features.map(f => f.properties.building_consents_total),
+                    text: all_features.map(f => f.properties.SA22018_V1_00_NAME),
+                    marker: {
+                        //size: 3
+                        color: all_features.map(f => f.properties.ethnicity.Maori),
+                        colorbar: {
+                            title: "# maori"
+                        }
+                    },
+                    mode: 'markers',
+                    type: 'scatter'
+                }];
+                layout = {
+                    title: "Deprivation vs building consents",
+                    height: 600,
+                    xaxis: {
+                        title: "Mean IMD2018 deprivation rank"
+                    },
+                    yaxis: {
+                        title: "# of 2020 consents"
+                    },
+                }
+                Plotly.newPlot("depvsconsents", depvsconsentsPlotData, layout, { responsive: true });
 
             }).addTo(map);
 
