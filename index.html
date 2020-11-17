@@ -1,0 +1,319 @@
+<html>
+
+<head>
+    <title>NZ Building Consents</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.css"
+        integrity="sha256-iYUgmrapfDGvBrePJPrMWQZDcObdAcStKBpjP3Az+3s=" crossorigin="anonymous" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.3.1/leaflet.js"
+        integrity="sha256-CNm+7c26DTTCGRQkM9vp7aP85kHFMqs9MhPEuytF+fQ=" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/leaflet-providers@1.3.0/leaflet-providers.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chroma-js/2.0.3/chroma.min.js"></script>
+    <script src='//api.tiles.mapbox.com/mapbox.js/plugins/leaflet-omnivore/v0.3.1/leaflet-omnivore.min.js'></script>
+    <script src="https://eknowles.github.io/resizerjs/resizer.js"></script>
+    <style>
+        body,
+        html {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .row {
+            display: flex;
+            width: 100%;
+        }
+
+        #map,
+        #plots {
+            flex: auto;
+            width: 0;
+            height: 100%;
+        }
+
+        #title {
+            flex: auto;
+            margin: 0;
+            text-align: center;
+            color: white;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.8);
+            font-size: 1rem;
+            font-family: Arial, Helvetica, sans-serif;
+            text-shadow: 2px 2px #000000;
+            font-weight: normal;
+        }
+
+        .info {
+            padding: 15px;
+            font: 14px/16px Arial, Helvetica, sans-serif;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+            border-radius: 5px;
+        }
+
+        .info h4 {
+            margin: 0 0 5px;
+            color: white;
+        }
+
+        .legend {
+            line-height: 18px;
+            color: white;
+            width: 300px;
+            padding: 20px;
+            margin-top: 30px !important;
+        }
+
+        .legend i {
+            width: 18px;
+            height: 18px;
+            float: left;
+            margin-right: 8px;
+            opacity: 0.7;
+            clear: left;
+        }
+
+        [data-rz-handle] {
+            flex: 0 0 6px;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        [data-rz-handle] div {
+            width: 6px;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+    </style>
+
+</head>
+
+<body>
+    <h1 id="title">NZ Building Consents</h1>
+    <div class="row" style="height: 100%">
+        <div id="map"></div>
+        <div id="plots">
+            <div id="consents"></div>
+            <div id="IMD"></div>
+            <div id="ethnicity"></div>
+        </div>
+    </div>
+    <script>
+        const myResizer = new Resizer('.row');
+        const MIN_DOMAIN = 0;
+        const MAX_DOMAIN = 50;
+        var cmap = chroma.scale("Spectral").domain([MIN_DOMAIN, MAX_DOMAIN]);
+
+        var map = L.map('map', {
+            zoom: 6,
+            minZoom: 6,
+            maxZoom: 14,
+            center: [-41.235726, 172.5118422]
+        });
+        var bounds = map.getBounds();
+        bounds._northEast.lat += 10;
+        bounds._northEast.lng += 10;
+        bounds._southWest.lat -= 10;
+        bounds._southWest.lng -= 10;
+        map.setMaxBounds(bounds);
+
+        var baseMaps = {
+            "OSM": L.tileLayer.provider("OpenStreetMap.Mapnik"),
+            "OSM Grayscale": L.tileLayer.provider("OpenStreetMap.BlackAndWhite"),
+            "CartoDB Positron": L.tileLayer.provider('CartoDB.PositronNoLabels').addTo(map),
+            "CartoDB Dark Matter": L.tileLayer.provider("CartoDB.DarkMatter"),
+            "ESRI WorldImagery": L.tileLayer.provider("Esri.WorldImagery"),
+            "Google Hybrid": L.tileLayer('http://{s}.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3']
+            }),
+            "Wikimedia": L.tileLayer.provider("Wikimedia")
+        }
+
+        map.createPane('labels');
+        map.getPane('labels').style.zIndex = 625;
+        map.getPane('labels').style.pointerEvents = 'none';
+        var labels = L.tileLayer.provider("Stamen.TonerLabels", {
+            pane: "labels",
+            interactive: false,
+            opacity: .8,
+        });
+
+        map.createPane('whitelabels');
+        map.getPane('whitelabels').style.zIndex = 625;
+        map.getPane('whitelabels').style.pointerEvents = 'none';
+        map.getPane('whitelabels').style.filter = 'invert(100%)';
+        var whitelabels = L.tileLayer.provider("Stamen.TonerLabels", {
+            pane: "whitelabels",
+            interactive: false,
+            opacity: .8,
+        });
+
+        var overlayMaps = {
+            "City labels": labels,
+            "City labels (white)": whitelabels,
+        }
+
+        L.control.layers(baseMaps, overlayMaps).addTo(map);
+
+
+        function updatePlots(building_consents, imdprops, ethnicity, region) {
+            Plotly.update("consents",
+                {
+                    y: [
+                        Object.values(building_consents)
+                    ],
+                },
+                {
+                    title: region + " Building Consents in 2020",
+                }
+            );
+            Plotly.update("IMD",
+                {
+                    y: [
+                        Object.keys(window.imd_summary).map(k => imdprops[k])
+                    ],
+                },
+                {
+                    title: "Deprivation in " + region,
+                }
+            );
+            Plotly.update("ethnicity",
+                {
+                    y: [
+                        Object.keys(window.eth_summary).map(k => ethnicity[k])
+                    ],
+                },
+                {
+                    title: region + " ethnicity breakdown",
+                }
+            );
+        }
+
+        var customLayer = L.geoJson(null, {
+            style: function (feature) {
+                console.log(feature)
+                feature.properties.building_consents_total = Object.values(feature.properties.building_consents).reduce((sum, x) => sum + x);
+                return {
+                    fillColor: cmap(feature.properties.building_consents_total),
+                    fillOpacity: .7,
+                    color: "black",
+                    //dashArray: "2,2",
+                    weight: .5
+                }
+            },
+            onEachFeature: function (feature, layer) {
+                layer.bindTooltip(`${feature.properties.SA22018_V1_00_NAME}: ${feature.properties.building_consents_total}`)
+                layer.on('mouseover', function (event) {
+                    updatePlots(feature.properties.building_consents, feature.properties, feature.properties.ethnicity, feature.properties.SA22018_V1_00_NAME)
+                }).on("mouseout", function () {
+                    updatePlots(window.building_consents_summary, window.imd_summary, window.eth_summary, "NZ")
+                });
+            },
+        });
+        omnivore.topojson('SA2+IMD+consents+ethnicity.topojson', null, customLayer)
+            .on('ready', function (event) {
+                window.building_consents_summary = {
+                    "2020-01-01": 0,
+                    "2020-02-01": 0,
+                    "2020-03-01": 0,
+                    "2020-04-01": 0,
+                    "2020-05-01": 0,
+                    "2020-06-01": 0,
+                    "2020-07-01": 0,
+                    "2020-08-01": 0,
+                    "2020-09-01": 0,
+                }
+
+                window.eth_summary = {
+                    "European": 0,
+                    "Maori": 0,
+                    "Pacific peoples": 0,
+                    "Asian": 0,
+                    "Middle Eastern/Latin American/African": 0,
+                    "Other ethnicity": 0
+                }
+
+                window.imd_summary = {
+                    "IMD18_mean": 0,
+                    "Access_mean": 0,
+                    "Crime_mean": 0,
+                    "Education_mean": 0,
+                    "Employment_mean": 0,
+                    "Health_mean": 0,
+                    "Housing_mean": 0,
+                    "Income_mean": 0
+                }
+                event.target.eachLayer(function (layer) {
+                    console.log(layer.feature)
+                    for (var month in layer.feature.properties.building_consents) {
+                        building_consents_summary[month] += layer.feature.properties.building_consents[month];
+                    }
+                    for (var k in imd_summary) {
+                        imd_summary[k] += layer.feature.properties[k];
+                    }
+                    for (var eth in eth_summary) {
+                        if (layer.feature.properties.ethnicity[eth]) {
+                            eth_summary[eth] += layer.feature.properties.ethnicity[eth];
+                        }
+                    }
+                });
+                var consentPlotData = [{
+                    x: Object.keys(building_consents_summary),
+                    y: Object.values(building_consents_summary),
+                    type: 'bar',
+                }];
+                layout = {
+                    title: "NZ Building Consents in 2020",
+                    height: 300,
+                }
+                Plotly.newPlot("consents", consentPlotData, layout, { responsive: true });
+
+                var imdPlotData = [{
+                    x: Object.keys(imd_summary).map(e => e.replace("_mean", "")),
+                    y: Object.values(imd_summary).map(e => e / 6181),
+                    type: 'line',
+                }];
+                layout = {
+                    title: "Deprivation in NZ",
+                    height: 300,
+                }
+                Plotly.newPlot("IMD", imdPlotData, layout, { responsive: true });
+
+                var ethPlotData = [{
+                    x: Object.keys(eth_summary),
+                    y: Object.values(eth_summary),
+                    type: 'bar',
+                }];
+                layout = {
+                    title: "NZ ethnicity breakdown",
+                    height: 300,
+                }
+                Plotly.newPlot("ethnicity", ethPlotData, layout, { responsive: true });
+
+            }).addTo(map);
+
+        var legend = L.control({ position: 'bottomright' });
+
+        legend.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'info legend');
+            var cancerLegend = "<div id='cancerLegend'><h4>Total 2020 building consents</h4>";
+            for (var i = MIN_DOMAIN; i <= MAX_DOMAIN; i += 10) {
+                var i_text = i.toLocaleString();
+                //if (i == MIN_DOMAIN) i_text = "<=" + i
+                if (i == MAX_DOMAIN) i_text = ">=" + i
+                cancerLegend += '<i style="background:' + cmap(i) + '"></i> ' + i_text + '<br>';
+            }
+            div.innerHTML += cancerLegend + "</div><div>Hover over an area to show plots for that area</div>";
+            return div;
+        };
+
+        legend.addTo(map);
+
+    </script>
+</body>
+
+</html>
