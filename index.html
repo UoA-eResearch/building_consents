@@ -78,6 +78,13 @@
             clear: left;
         }
 
+        .legend-source {
+            font-size: 70%;
+            color: #999;
+            clear: both;
+            float: right;
+        }
+
         [data-rz-handle] {
             flex: 0 0 6px;
             background-color: rgba(0, 0, 0, 0.5);
@@ -195,7 +202,7 @@
         }
 
         window.selected_layer = null;
-        map.on("click", function(event) {
+        map.on("click", function (event) {
             console.log(event);
             if (window.selected_layer) {
                 window.selected_layer.setStyle({
@@ -225,7 +232,7 @@
                     updatePlots(feature.properties.building_consents, feature.properties, feature.properties.ethnicity, feature.properties.SA22018_V1_00_NAME)
                 }).on("mouseout", function () {
                     updatePlots(window.building_consents_summary, window.imd_summary, window.eth_summary, "NZ")
-                }).on("click", function(event) {
+                }).on("click", function (event) {
                     if (window.selected_layer) {
                         window.selected_layer.setStyle({
                             color: "black",
@@ -343,6 +350,12 @@
                 cancerLegend += '<i style="background:' + cmap(i) + '"></i> ' + i_text + '<br>';
             }
             div.innerHTML += cancerLegend + "</div><div>Hover over an area to show plots for that area</div>";
+            div.innerHTML += `<div class="legend-source">
+                Source: Statistics NZ.
+                <a href="https://datafinder.stats.govt.nz/layer/92213-statistical-area-2-2018-clipped-generalised/">SA2 polygons</a>
+                <a href="https://www.stats.govt.nz/tools/2018-census-place-summaries/" target="_blank">2018 Census ethnicity by SA2</a>
+                <a href="https://www.stats.govt.nz/information-releases/building-consents-issued-september-2020">Building consents by SA2</a>
+            </div>`
             return div;
         };
 
