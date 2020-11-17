@@ -161,6 +161,7 @@
 
 
         function updatePlots(building_consents, imdprops, ethnicity, region) {
+            if (window.selected_layer && window.selected_layer.feature.properties.SA22018_V1_00_NAME != region) return;
             Plotly.update("consents",
                 {
                     y: [
@@ -193,9 +194,22 @@
             );
         }
 
+        window.selected_layer = null;
+        map.on("click", function(event) {
+            console.log(event);
+            if (window.selected_layer) {
+                window.selected_layer.setStyle({
+                    color: "black",
+                    weight: .5
+                });
+                window.selected_layer = null;
+                updatePlots(window.building_consents_summary, window.imd_summary, window.eth_summary, "NZ")
+            }
+        });
+
         var customLayer = L.geoJson(null, {
             style: function (feature) {
-                console.log(feature)
+                //console.log(feature)
                 feature.properties.building_consents_total = Object.values(feature.properties.building_consents).reduce((sum, x) => sum + x);
                 return {
                     fillColor: cmap(feature.properties.building_consents_total),
@@ -211,6 +225,24 @@
                     updatePlots(feature.properties.building_consents, feature.properties, feature.properties.ethnicity, feature.properties.SA22018_V1_00_NAME)
                 }).on("mouseout", function () {
                     updatePlots(window.building_consents_summary, window.imd_summary, window.eth_summary, "NZ")
+                }).on("click", function(event) {
+                    if (window.selected_layer) {
+                        window.selected_layer.setStyle({
+                            color: "black",
+                            weight: .5
+                        });
+                    }
+                    if (window.selected_layer != event.target) {
+                        window.selected_layer = event.target;
+                        event.target.setStyle({
+                            color: "orange",
+                            weight: 4
+                        })
+                        updatePlots(feature.properties.building_consents, feature.properties, feature.properties.ethnicity, feature.properties.SA22018_V1_00_NAME)
+                    } else {
+                        window.selected_layer = null;
+                    }
+                    L.DomEvent.stopPropagation(event);
                 });
             },
         });
@@ -248,7 +280,7 @@
                     "Income_mean": 0
                 }
                 event.target.eachLayer(function (layer) {
-                    console.log(layer.feature)
+                    //console.log(layer.feature)
                     for (var month in layer.feature.properties.building_consents) {
                         building_consents_summary[month] += layer.feature.properties.building_consents[month];
                     }
