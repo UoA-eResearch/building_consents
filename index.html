@@ -171,7 +171,8 @@
         map.createPane('labels');
         map.getPane('labels').style.zIndex = 625;
         map.getPane('labels').style.pointerEvents = 'none';
-        var labels = L.tileLayer.provider("Stamen.TonerLabels", {
+        var labels = openFreeMap("positron", {
+            labels: "only",
             pane: "labels",
             interactive: false,
             opacity: .8,
@@ -181,7 +182,8 @@
         map.getPane('whitelabels').style.zIndex = 625;
         map.getPane('whitelabels').style.pointerEvents = 'none';
         map.getPane('whitelabels').style.filter = 'invert(100%)';
-        var whitelabels = L.tileLayer.provider("Stamen.TonerLabels", {
+        var whitelabels = openFreeMap("positron", {
+            labels: "only",
             pane: "whitelabels",
             interactive: false,
             opacity: .8,
